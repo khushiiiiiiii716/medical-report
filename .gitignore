@@ -1,0 +1,50 @@
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# lib/ is a Python venv folder, but we must NOT ignore frontend/lib/
+/lib/
+/backend/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Next.js / Frontend
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+
+# HybridOcean specific
+backend/venv/
+backend/__pycache__/
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
