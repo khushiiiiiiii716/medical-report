@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Loader2, Sparkles, FileText, AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 function ReportUpload({ onUploadSuccess }) {
   const [isOpen, setIsOpen] = useState(false);

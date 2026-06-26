@@ -45,6 +45,18 @@ def load_ml_models():
         _models["heart_disease"] = joblib.load(os.path.join(MODELS_DIR, "heart_disease_model.joblib"))
         _models["anemia"] = joblib.load(os.path.join(MODELS_DIR, "anemia_model.joblib"))
 
+def _get_positive_class_probability(model, X, positive_class=1):
+    """Return the probability for the positive class in a binary classifier."""
+    proba = model.predict_proba(X)[0]
+    if hasattr(model, "classes_"):
+        classes = list(model.classes_)
+        if positive_class in classes:
+            return proba[classes.index(positive_class)] * 100.0
+        if len(classes) == 1:
+            return 100.0 if classes[0] == positive_class else 0.0
+    return float(max(proba)) * 100.0
+
+
 def predict_risks(biomarkers, user_profile):
     """
     Evaluates risk percentages for Diabetes, Heart Disease, and Anemia using trained classifiers.
@@ -81,8 +93,7 @@ def predict_risks(biomarkers, user_profile):
     
     diabetes_prob = 0.0
     if _models["diabetes"]:
-        # predict_proba returns [prob_class_0, prob_class_1]
-        diabetes_prob = _models["diabetes"].predict_proba(X_diabetes)[0][1] * 100
+        diabetes_prob = _get_positive_class_probability(_models["diabetes"], X_diabetes)
         
     # Apply minor adjustments based on family history
     if user_profile.get("family_history_diabetes", False):
@@ -101,7 +112,7 @@ def predict_risks(biomarkers, user_profile):
     
     heart_prob = 0.0
     if _models["heart_disease"]:
-        heart_prob = _models["heart_disease"].predict_proba(X_heart)[0][1] * 100
+        heart_prob = _get_positive_class_probability(_models["heart_disease"], X_heart)
         
     if user_profile.get("family_history_heart", False):
         heart_prob = min(99.0, heart_prob + 12.0)
@@ -119,7 +130,7 @@ def predict_risks(biomarkers, user_profile):
     
     anemia_prob = 0.0
     if _models["anemia"]:
-        anemia_prob = _models["anemia"].predict_proba(X_anemia)[0][1] * 100
+        anemia_prob = _get_positive_class_probability(_models["anemia"], X_anemia)
         
     return {
         "diabetes": float(round(diabetes_prob, 1)),

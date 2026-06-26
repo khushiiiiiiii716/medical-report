@@ -829,7 +829,7 @@ RECOMMENDATIONS = {
                 "ਸਾਲਾਨਾ ਵਿਆਪਕ ਸਿਹਤ ਜਾਂਚ ਕਰਵਾਓ।"
             ]
         }
-    }
+    },
 
     "es": {
         "app_name": "AURA MED",
