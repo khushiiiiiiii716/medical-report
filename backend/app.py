@@ -18,6 +18,7 @@ from utils.pdf_generator import generate_report_pdf
 from utils.translations import translate_biomarker, get as t_get
 from utils.anomaly_detector import detect_trend_anomalies
 from utils.notifier import notify_critical_anomalies
+from utils.fraud_detector import detect_fraud
 
 SUPPORTED_LANGS = {'en', 'hi', 'ta', 'pa', 'es', 'fr', 'de'}
 
@@ -132,6 +133,9 @@ def upload_report():
         
         # 2.5 Run Machine Learning Anomaly Detection on Trends
         parsed_biomarkers = detect_trend_anomalies(parsed_biomarkers, user.id, db)
+
+        # 2.6 Run Fraud Detection on the uploaded report
+        fraud_result = detect_fraud(parsed_biomarkers, file_path, user.id, db)
         
         # 3. Compute Health Score
         health_score = calculate_health_score(parsed_biomarkers)
@@ -158,7 +162,10 @@ def upload_report():
             health_score=health_score,
             diabetes_risk=risks["diabetes"],
             heart_disease_risk=risks["heart_disease"],
-            anemia_risk=risks["anemia"]
+            anemia_risk=risks["anemia"],
+            fraud_score=fraud_result["fraud_score"],
+            fraud_risk_level=fraud_result["risk_level"],
+            fraud_flags="|".join(fraud_result["flags"]) if fraud_result["flags"] else ""
         )
         db.add(report)
         db.commit() # Commits to generate report.id
@@ -190,6 +197,18 @@ def upload_report():
 
         # Translate biomarker statuses and categories before response
         translated_biomarkers = [translate_biomarker(b, lang) for b in parsed_biomarkers]
+        risk_emergency = any(risk >= 60.0 for risk in risks.values())
+        emergency_alert = {
+            "is_emergency": len(critical_biomarkers) > 0 or len(ml_anomalies) > 0 or risk_emergency,
+            "critical_count": len(critical_biomarkers),
+            "trend_anomaly_count": len(ml_anomalies),
+            "risk_emergency": risk_emergency,
+            "high_risks": {
+                "diabetes": risks["diabetes"] >= 60.0,
+                "heart_disease": risks["heart_disease"] >= 60.0,
+                "anemia": risks["anemia"] >= 60.0
+            }
+        }
         
         return jsonify({
             "id": report.id,
@@ -199,6 +218,9 @@ def upload_report():
             "risks": risks,
             "biomarkers": translated_biomarkers,
             "recommendations": recommendations,
+            "emergency_alert": emergency_alert,
+            "is_emergency": emergency_alert["is_emergency"],
+            "fraud_detection": fraud_result,
             "lang": lang
         })
         
@@ -236,6 +258,7 @@ def get_reports():
             # Reconstruct recommendations for each report
             recommendations = get_recommendations(biomarkers)
             
+            is_emergency = any(b["status"] in ["High", "Low"] for b in biomarkers)
             result.append({
                 "id": r.id,
                 "filename": r.filename,
@@ -247,7 +270,15 @@ def get_reports():
                     "anemia": r.anemia_risk
                 },
                 "biomarkers": translated_biomarkers,
-                "recommendations": recommendations
+                "recommendations": recommendations,
+                "is_emergency": is_emergency,
+                "fraud_detection": {
+                    "is_fraud_suspected": bool(r.fraud_score and r.fraud_score > 0),
+                    "fraud_score": r.fraud_score or 0,
+                    "risk_level": r.fraud_risk_level or "none",
+                    "flags": [f for f in (r.fraud_flags or "").split("|") if f],
+                    "categories": []
+                }
             })
         return jsonify(result)
     except Exception as e:

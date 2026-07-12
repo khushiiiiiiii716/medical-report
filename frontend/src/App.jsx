@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Activity, FileText, MessageSquare, User, Sparkles, Globe
+  Activity, FileText, MessageSquare, User, Sparkles, Globe, Sun, Moon,
+  Mic, GitCompare, LogOut, Settings, Menu, X
 } from 'lucide-react';
 
 import Dashboard from './components/Dashboard';
 import ReportUpload from './components/ReportUpload';
 import Recommendations from './components/Recommendations';
 import ChatBot from './components/ChatBot';
-import RiskPredictor from './components/RiskPredictor';
 import ReportHistory from './components/ReportHistory';
 import AlertModal from './components/AlertModal';
+import LandingPage from './components/LandingPage';
+import LoginPage from './components/LoginPage';
+import VoiceAssistant from './components/VoiceAssistant';
+import ReportComparison from './components/ReportComparison';
+import ProfilePage from './components/ProfilePage';
+import SettingsPage from './components/SettingsPage';
 
 import { DEFAULT_PROFILE, MOCK_REPORTS } from './utils/mockData';
 import { LANGUAGES, useTranslation } from './utils/translations';
@@ -17,6 +23,11 @@ import { LANGUAGES, useTranslation } from './utils/translations';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 function App() {
+  const [hasStarted, setHasStarted] = useState(() => sessionStorage.getItem('aura_has_started') === 'true');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!sessionStorage.getItem('aura_user'));
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [lang, setLang] = useState(() => localStorage.getItem('aura_lang') || 'en');
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -24,18 +35,28 @@ function App() {
   const [reports, setReports] = useState(MOCK_REPORTS);
   const [activeReportIndex, setActiveReportIndex] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
-  
-  // Alert Modal State
+  const [theme, setTheme] = useState(() => localStorage.getItem('aura_theme') || 'light');
+  const [settingsForm, setSettingsForm] = useState({
+    notifications: true,
+    weeklyDigest: false,
+    mfa: true,
+    anonymousAnalytics: true,
+  });
   const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [criticalBiomarkers, setCriticalBiomarkers] = useState([]);
   const [mlAnomalies, setMlAnomalies] = useState([]);
+  const [emergencyAlert, setEmergencyAlert] = useState(null);
 
   const t = useTranslation(lang);
 
-  // Persist language selection
+  useEffect(() => { localStorage.setItem('aura_lang', lang); }, [lang]);
+  useEffect(() => { sessionStorage.setItem('aura_has_started', hasStarted ? 'true' : 'false'); }, [hasStarted]);
+
   useEffect(() => {
-    localStorage.setItem('aura_lang', lang);
-  }, [lang]);
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    localStorage.setItem('aura_theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     fetchProfile();
@@ -63,38 +84,47 @@ function App() {
     setUserProfile(updated);
     try {
       const r = await fetch(`${API_BASE_URL}/user/profile`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
       });
       if (r.ok) { setUserProfile(await r.json()); fetchReports(); }
     } catch { /* offline */ }
   };
 
   const handleUploadSuccess = (newReport) => {
-    setReports(prev => [newReport, ...prev]);
+    setReports((prev) => [newReport, ...prev]);
     setActiveReportIndex(0);
     setActiveTab('dashboard');
     setIsConnected(true);
 
-    // Check for anomalies to trigger AlertModal
-    if (newReport && newReport.biomarkers) {
-      const critical = newReport.biomarkers.filter(b => b.status === 'High' || b.status === 'Low');
-      const ml = newReport.biomarkers.filter(b => b.is_trend_anomaly);
-      
-      if (critical.length > 0 || ml.length > 0) {
+    if (newReport?.biomarkers) {
+      const critical = newReport.biomarkers.filter((b) => b.status === 'High' || b.status === 'Low');
+      const ml = newReport.biomarkers.filter((b) => b.is_trend_anomaly);
+      const emergency = newReport.emergency_alert || {
+        is_emergency: critical.length > 0 || ml.length > 0,
+        critical_count: critical.length,
+        trend_anomaly_count: ml.length,
+      };
+      newReport.is_emergency = emergency.is_emergency;
+      newReport.emergency_alert = emergency;
+      if (emergency.is_emergency) {
         setCriticalBiomarkers(critical);
         setMlAnomalies(ml);
+        setEmergencyAlert(emergency);
         setAlertModalOpen(true);
+      } else {
+        setEmergencyAlert(null);
       }
     }
   };
 
-  const handleLangChange = (code) => {
-    setLang(code);
-    setLangMenuOpen(false);
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setSidebarOpen(false);
   };
 
-  const currentLang = LANGUAGES.find(l => l.code === lang) || LANGUAGES[0];
+  const currentLang = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
   const currentReport = reports[activeReportIndex] || null;
 
   const navItems = [
@@ -103,6 +133,7 @@ function App() {
     { key: 'recommendations', icon: <Sparkles size={18} />, label: t('nav_recommendations') },
     { key: 'chatbot', icon: <MessageSquare size={18} />, label: t('nav_chatbot') },
     { key: 'profile', icon: <User size={18} />, label: t('nav_profile') },
+    { key: 'settings', icon: <Settings size={18} />, label: 'Settings' },
   ];
 
   const tabTitles = {
@@ -111,79 +142,99 @@ function App() {
     recommendations: t('nav_recommendations'),
     chatbot: t('nav_chatbot'),
     profile: t('nav_profile'),
+    settings: 'Settings & Security',
   };
 
+  if (!isLoggedIn) {
+    return (
+      <LoginPage
+        onLogin={(user) => {
+          sessionStorage.setItem('aura_user', JSON.stringify(user));
+          sessionStorage.setItem('aura_has_started', 'true');
+          setHasStarted(true);
+          setIsLoggedIn(true);
+        }}
+        lang={lang}
+        t={t}
+      />
+    );
+  }
+
+  if (!hasStarted) {
+    return <LandingPage onEnter={() => setHasStarted(true)} lang={lang} t={t} />;
+  }
+
   return (
-    <div className="flex min-h-screen bg-darkBg text-slate-100">
-      
-      <AlertModal 
-        isOpen={alertModalOpen} 
-        onClose={() => setAlertModalOpen(false)} 
+    <div className="flex min-h-screen bg-darkBg text-slate-800 transition-colors duration-300 dark:text-slate-100">
+      <AlertModal
+        isOpen={alertModalOpen}
+        onClose={() => setAlertModalOpen(false)}
         criticalBiomarkers={criticalBiomarkers}
         mlAnomalies={mlAnomalies}
-        setActiveTab={setActiveTab}
+        emergencyAlert={emergencyAlert}
+        setActiveTab={handleTabChange}
+        t={t}
       />
+      <VoiceAssistant report={currentReport} isOpen={voiceOpen} onClose={() => setVoiceOpen(false)} t={t} />
+      <ReportComparison reports={reports} isOpen={compareOpen} onClose={() => setCompareOpen(false)} t={t} />
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
 
       {/* Sidebar */}
-      <aside className="w-64 border-r border-darkCardBorder bg-[#0D1424] flex flex-col justify-between shrink-0">
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col justify-between border-r border-slate-200/60 bg-white/90 shadow-soft backdrop-blur-xl transition-transform duration-300 dark:border-white/8 dark:bg-[#0a1220]/95 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
-          {/* Brand */}
-          <div className="p-6 border-b border-darkCardBorder flex items-center space-x-3">
-            <div className="bg-gradient-to-tr from-neonCyan to-neonTeal p-2 rounded-xl text-darkBg shadow-glow-cyan">
-              <Activity size={24} className="stroke-[2.5]" />
+          <div className="flex items-center justify-between border-b border-slate-200/60 p-5 dark:border-white/8">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-600 p-2.5 text-white shadow-glow-teal">
+                <Activity size={22} className="stroke-[2.5]" />
+              </div>
+              <div>
+                <h1 className="font-display text-base font-bold tracking-wide text-slate-900 dark:text-white">AURA MED</h1>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">AI Clinical Analyzer</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-extrabold text-lg leading-tight tracking-wider bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                {t('app_name')}
-              </h1>
-              <p className="text-[10px] text-neonCyan font-bold tracking-widest uppercase">
-                {t('app_tagline')}
-              </p>
-            </div>
+            <button onClick={() => setSidebarOpen(false)} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 lg:hidden" aria-label="Close menu">
+              <X size={18} />
+            </button>
           </div>
 
-          {/* Language Selector */}
-          <div className="px-4 pt-4 pb-2 relative">
+          <div className="relative px-4 pt-4 pb-2">
             <button
-              onClick={() => setLangMenuOpen(v => !v)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 border border-white/5 hover:border-neonCyan/30 transition-all text-xs font-bold text-slate-300"
+              onClick={() => setLangMenuOpen((v) => !v)}
+              className="flex w-full items-center justify-between rounded-2xl border border-slate-200/60 bg-slate-50/80 px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-blue-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
             >
-              <span className="flex items-center space-x-2">
-                <Globe size={13} className="text-neonCyan" />
-                <span>{currentLang.flag} {currentLang.nativeLabel}</span>
+              <span className="flex items-center gap-2">
+                <Globe size={13} className="text-blue-500" />
+                {currentLang.flag} {currentLang.nativeLabel}
               </span>
-              <span className="text-[9px] text-slate-500 uppercase tracking-widest">{t('lang_select')}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t('lang_select')}</span>
             </button>
             {langMenuOpen && (
-              <div className="absolute left-4 right-4 top-full mt-1 z-50 bg-[#0D1424] border border-darkCardBorder rounded-xl shadow-xl overflow-hidden">
-                {LANGUAGES.map(lng => (
+              <div className="absolute left-4 right-4 top-full z-50 mt-1.5 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-slate-900">
+                {LANGUAGES.map((lng) => (
                   <button
                     key={lng.code}
-                    onClick={() => handleLangChange(lng.code)}
-                    className={`w-full flex items-center space-x-2 px-4 py-2.5 text-xs font-bold transition-all hover:bg-white/5 ${
-                      lang === lng.code ? 'text-neonCyan bg-neonCyan/10' : 'text-slate-300'
-                    }`}
+                    onClick={() => { setLang(lng.code); setLangMenuOpen(false); }}
+                    className={`flex w-full items-center gap-2.5 px-4 py-3 text-xs font-semibold transition hover:bg-slate-50 dark:hover:bg-white/5 ${lang === lng.code ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}
                   >
-                    <span className="text-base">{lng.flag}</span>
+                    <span>{lng.flag}</span>
                     <span>{lng.nativeLabel}</span>
-                    <span className="text-slate-500">({lng.label})</span>
+                    <span className="font-normal text-slate-400">({lng.label})</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Navigation */}
-          <nav className="p-4 space-y-1">
-            {navItems.map(item => (
+          <nav className="space-y-1 p-4" aria-label="Main navigation">
+            {navItems.map((item) => (
               <button
                 key={item.key}
-                onClick={() => setActiveTab(item.key)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  activeTab === item.key
-                    ? 'bg-gradient-to-r from-neonCyan/20 to-neonIndigo/10 border-l-4 border-neonCyan text-white shadow-glow-cyan'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
+                onClick={() => handleTabChange(item.key)}
+                className={`nav-item ${activeTab === item.key ? 'nav-item-active' : 'nav-item-inactive'}`}
               >
                 {item.icon}
                 <span>{item.label}</span>
@@ -192,126 +243,79 @@ function App() {
           </nav>
         </div>
 
-        {/* Footer: DB Status + Mini Profile */}
-        <div className="p-4 border-t border-darkCardBorder bg-[#090E1A]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">{t('db_status')}</span>
-            <div className="flex items-center space-x-1.5">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-neonTeal animate-pulse' : 'bg-neonWarning'}`}></span>
-              <span className="text-[11px] font-bold text-slate-300">
-                {isConnected ? 'Postgres/SQLite' : t('offline_mode')}
+        <div className="border-t border-slate-200/60 bg-slate-50/60 p-4 dark:border-white/8 dark:bg-black/20">
+          <div className="mb-3 flex items-center justify-between px-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{t('db_status')}</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${isConnected ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                {isConnected ? 'Connected' : t('offline_mode')}
               </span>
             </div>
           </div>
-          <div className="p-3 bg-white/5 rounded-lg flex items-center justify-between border border-white/5">
-            <div>
-              <p className="text-xs font-bold text-white truncate max-w-[120px]">{userProfile.name}</p>
-              <p className="text-[10px] text-slate-400">{userProfile.gender}, {userProfile.age} yrs</p>
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200/60 bg-white/80 px-3 py-3 dark:border-white/8 dark:bg-white/5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-slate-900 dark:text-white">{userProfile.name}</p>
+              <p className="text-[9px] font-medium uppercase text-slate-500">{userProfile.gender}, {userProfile.age} yrs</p>
             </div>
-            <div className="bg-neonIndigo/20 text-neonIndigo font-extrabold text-[10px] px-2 py-1 rounded border border-neonIndigo/30">
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
               BMI {userProfile.bmi}
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="h-16 border-b border-darkCardBorder bg-[#0D1424]/50 backdrop-blur-md px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
-          <h2 className="text-lg font-bold text-white tracking-wide">{tabTitles[activeTab]}</h2>
-          <ReportUpload onUploadSuccess={handleUploadSuccess} lang={lang} t={t} />
+      {/* Main content */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/60 bg-white/75 px-4 backdrop-blur-xl sm:h-[4.5rem] sm:px-6 lg:px-8 dark:border-white/8 dark:bg-[#0a1220]/80">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="btn-icon lg:hidden" aria-label="Open menu">
+              <Menu size={18} />
+            </button>
+            <h2 className="font-display text-base font-bold tracking-tight text-slate-900 sm:text-lg dark:text-white">{tabTitles[activeTab]}</h2>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button onClick={() => setVoiceOpen(true)} title={t('header_voice_assistant')} className="btn-icon hidden sm:flex" aria-label="Voice assistant">
+              <Mic size={16} />
+            </button>
+            <button onClick={() => setCompareOpen(true)} title={t('header_compare_reports')} className="btn-icon hidden sm:flex" aria-label="Compare reports">
+              <GitCompare size={16} />
+            </button>
+            <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="btn-icon" title={t('header_toggle_theme')} aria-label="Toggle theme">
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <button
+              onClick={() => { sessionStorage.removeItem('aura_user'); setIsLoggedIn(false); }}
+              title={t('header_logout')}
+              className="btn-icon hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+              aria-label="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+            <ReportUpload onUploadSuccess={handleUploadSuccess} lang={lang} t={t} />
+          </div>
         </header>
 
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8">
           {activeTab === 'dashboard' && (
-            <Dashboard report={currentReport} reportsList={reports} lang={lang} t={t}
-              setActiveTab={setActiveTab} setActiveReportIndex={setActiveReportIndex} />
+            <Dashboard report={currentReport} reportsList={reports} lang={lang} t={t} setActiveTab={handleTabChange} setActiveReportIndex={setActiveReportIndex} />
           )}
           {activeTab === 'history' && (
-            <ReportHistory reports={reports} activeReportIndex={activeReportIndex}
-              setActiveReportIndex={setActiveReportIndex} t={t}
+            <ReportHistory
+              reports={reports}
+              activeReportIndex={activeReportIndex}
+              setActiveReportIndex={setActiveReportIndex}
+              t={t}
               onDeleteReport={(id) => {
-                setReports(prev => prev.filter(r => r.id !== id));
+                setReports((prev) => prev.filter((r) => r.id !== id));
                 if (activeReportIndex >= reports.length - 1) setActiveReportIndex(Math.max(0, reports.length - 2));
-              }} />
+              }}
+            />
           )}
           {activeTab === 'recommendations' && <Recommendations report={currentReport} lang={lang} t={t} />}
           {activeTab === 'chatbot' && <ChatBot report={currentReport} lang={lang} t={t} />}
-
-          {activeTab === 'profile' && (
-            <div className="max-w-2xl mx-auto glass-panel p-8 rounded-2xl border border-darkCardBorder">
-              <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-neonCyan to-neonTeal bg-clip-text text-transparent">
-                {t('profile_title')}
-              </h3>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const fd = new FormData(e.target);
-                const get = k => fd.get(k);
-                const h = parseFloat(get('height')), w = parseFloat(get('weight'));
-                handleUpdateProfile({
-                  name: get('name'), age: parseInt(get('age')), gender: get('gender'),
-                  height: h, weight: w, bmi: parseFloat((w / ((h / 100) ** 2)).toFixed(1)),
-                  smoking: get('smoking') === 'true', exercise: get('exercise') === 'true',
-                  family_history_diabetes: get('fhd') === 'true',
-                  family_history_heart: get('fhh') === 'true'
-                });
-                alert(lang === 'hi' ? 'प्रोफ़ाइल सफलतापूर्वक अपडेट हुई!' :
-                      lang === 'ta' ? 'சுயவிவரம் வெற்றிகரமாக புதுப்பிக்கப்பட்டது!' :
-                      lang === 'pa' ? 'ਪ੍ਰੋਫਾਈਲ ਸਫਲਤਾਪੂਰਵਕ ਅੱਪਡੇਟ ਹੋਈ!' :
-                      'Health profile updated successfully!');
-              }} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {[['name','text',t('label_name'),userProfile.name],['age','number',t('label_age'),userProfile.age]].map(([n,type,label,def])=>(
-                    <div key={n}>
-                      <label className="block text-xs text-slate-400 font-bold mb-1 uppercase">{label}</label>
-                      <input name={n} type={type} defaultValue={def} required className="w-full bg-[#0B0F19] border border-darkCardBorder rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-neonCyan" />
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 font-bold mb-1 uppercase">{t('label_gender')}</label>
-                    <select name="gender" defaultValue={userProfile.gender} className="w-full bg-[#0B0F19] border border-darkCardBorder rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-neonCyan">
-                      <option value="Male">{t('opt_male')}</option>
-                      <option value="Female">{t('opt_female')}</option>
-                      <option value="Other">{t('opt_other')}</option>
-                    </select>
-                  </div>
-                  {[['height',t('label_height'),userProfile.height],['weight',t('label_weight'),userProfile.weight]].map(([n,label,def])=>(
-                    <div key={n}>
-                      <label className="block text-xs text-slate-400 font-bold mb-1 uppercase">{label}</label>
-                      <input name={n} type="number" step="0.1" defaultValue={def} required className="w-full bg-[#0B0F19] border border-darkCardBorder rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-neonCyan" />
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {[['smoking',t('label_smoking'),userProfile.smoking],['exercise',t('label_exercise'),userProfile.exercise]].map(([n,label,def])=>(
-                    <div key={n}>
-                      <label className="block text-xs text-slate-400 font-bold mb-1 uppercase">{label}</label>
-                      <select name={n} defaultValue={String(def)} className="w-full bg-[#0B0F19] border border-darkCardBorder rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-neonCyan">
-                        <option value="true">{t('opt_yes')}</option>
-                        <option value="false">{n === 'exercise' ? t('opt_sedentary') : t('opt_no')}</option>
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {[['fhd',t('label_fam_diabetes'),userProfile.family_history_diabetes],['fhh',t('label_fam_heart'),userProfile.family_history_heart]].map(([n,label,def])=>(
-                    <div key={n}>
-                      <label className="block text-xs text-slate-400 font-bold mb-1 uppercase">{label}</label>
-                      <select name={n} defaultValue={String(def)} className="w-full bg-[#0B0F19] border border-darkCardBorder rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-neonCyan">
-                        <option value="false">{t('opt_no')}</option>
-                        <option value="true">{t('opt_yes')}</option>
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <button type="submit" className="w-full mt-6 bg-gradient-to-r from-neonCyan to-neonIndigo text-darkBg font-bold py-3 rounded-lg hover:opacity-90 transition-all text-sm uppercase tracking-wider">
-                  {t('btn_save_profile')}
-                </button>
-              </form>
-            </div>
-          )}
+          {activeTab === 'profile' && <ProfilePage userProfile={userProfile} onUpdate={handleUpdateProfile} t={t} />}
+          {activeTab === 'settings' && <SettingsPage settingsForm={settingsForm} setSettingsForm={setSettingsForm} theme={theme} setTheme={setTheme} t={t} />}
         </div>
       </main>
     </div>

@@ -1,60 +1,68 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, HeartPulse, ArrowRight } from 'lucide-react';
 
-function AlertModal({ isOpen, onClose, criticalBiomarkers, mlAnomalies, setActiveTab }) {
+function AlertModal({ isOpen, onClose, criticalBiomarkers, mlAnomalies, emergencyAlert, setActiveTab, t }) {
   if (!isOpen) return null;
 
-  const handleNavigate = () => {
-    onClose();
-    setActiveTab('recommendations');
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#151c2c] border border-neonCritical/30 rounded-2xl p-6 w-full max-w-md shadow-glow-red transform transition-all">
-        
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center space-x-3 text-neonCritical">
-            <AlertTriangle size={28} className="animate-pulse" />
-            <h2 className="text-xl font-black uppercase tracking-wider">Critical Alert</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fade-in" role="alertdialog" aria-modal="true">
+      <div className="w-full max-w-md animate-scale-in overflow-hidden rounded-3xl border border-rose-200/60 bg-white shadow-soft-lg dark:border-rose-900/40 dark:bg-[#0f1729]">
+        <div className="bg-gradient-to-r from-rose-500 to-red-600 p-5 text-white">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white/20 p-2 backdrop-blur">
+                <AlertTriangle size={24} className="animate-pulse-soft" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-bold">{t('alert_modal_title')}</h2>
+                <p className="text-xs text-white/80">Immediate attention recommended</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="rounded-lg p-1.5 text-white/80 transition hover:bg-white/20" aria-label="Close">
+              <X size={18} />
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
         </div>
 
-        <div className="mb-6 text-sm text-slate-300 leading-relaxed">
-          <p className="mb-4">
-            Our AI analysis detected highly abnormal values in your latest medical report that require immediate attention.
-          </p>
-          
-          {criticalBiomarkers && criticalBiomarkers.length > 0 && (
-            <div className="mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Out of Range</span>
-              <ul className="space-y-1">
+        <div className="space-y-4 p-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          {emergencyAlert?.is_emergency && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/30 dark:bg-rose-950/20">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600">
+                <HeartPulse size={14} />
+                {t('alert_modal_emergency')}
+              </p>
+              <p className="mt-1 text-xs">
+                {t('alert_modal_emergency_details', { criticalCount: emergencyAlert.critical_count, anomalyCount: emergencyAlert.trend_anomaly_count })}
+              </p>
+            </div>
+          )}
+
+          <p>{t('alert_modal_body')}</p>
+
+          {criticalBiomarkers?.length > 0 && (
+            <div>
+              <span className="section-label mb-2 block text-rose-600">{t('alert_modal_out_of_range')}</span>
+              <ul className="space-y-2">
                 {criticalBiomarkers.map((bio, idx) => (
-                  <li key={idx} className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-neonCritical" />
-                    <span className="font-bold text-white">{bio.name}:</span>
-                    <span className="text-neonCritical">{bio.value} {bio.unit}</span>
+                  <li key={idx} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/5">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" />
+                    <span className="font-semibold text-slate-900 dark:text-white">{bio.name}:</span>
+                    <span className="font-bold text-rose-600">{bio.value} {bio.unit}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {mlAnomalies && mlAnomalies.length > 0 && (
-            <div className="mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-neonWarning mb-1 block">AI Trend Anomalies</span>
-              <ul className="space-y-1">
+          {mlAnomalies?.length > 0 && (
+            <div>
+              <span className="section-label mb-2 block text-amber-600">{t('alert_modal_ai_anomalies')}</span>
+              <ul className="space-y-2">
                 {mlAnomalies.map((bio, idx) => (
-                  <li key={idx} className="flex items-center space-x-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-neonWarning" />
-                    <span className="font-bold text-white">{bio.name}:</span>
-                    <span className="text-neonWarning">Unusual fluctuation detected</span>
+                  <li key={idx} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="font-semibold text-slate-900 dark:text-white">{bio.name}:</span>
+                    <span className="text-amber-600">{t('alert_modal_unusual_fluctuation')}</span>
                   </li>
                 ))}
               </ul>
@@ -62,21 +70,18 @@ function AlertModal({ isOpen, onClose, criticalBiomarkers, mlAnomalies, setActiv
           )}
         </div>
 
-        <div className="flex space-x-3">
-          <button 
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5 transition-all"
-          >
-            Dismiss
+        <div className="flex gap-3 border-t border-slate-200/60 p-4 dark:border-white/8">
+          <button onClick={onClose} className="btn-secondary flex-1 text-xs uppercase tracking-wider">
+            {t('alert_modal_dismiss')}
           </button>
-          <button 
-            onClick={handleNavigate}
-            className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-neonCritical/20 hover:bg-neonCritical/30 text-neonCritical border border-neonCritical/30 transition-all"
+          <button
+            onClick={() => { onClose(); setActiveTab('recommendations'); }}
+            className="btn-primary flex-1 bg-gradient-to-r from-rose-500 to-red-600 text-xs uppercase tracking-wider shadow-rose-500/20"
           >
-            View Interventions
+            {t('alert_modal_view_interventions')}
+            <ArrowRight size={14} />
           </button>
         </div>
-
       </div>
     </div>
   );

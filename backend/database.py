@@ -66,6 +66,11 @@ class MedicalReport(Base):
     heart_disease_risk = Column(Float, default=0.0)
     anemia_risk = Column(Float, default=0.0)
 
+    # Fraud detection results
+    fraud_score = Column(Integer, default=0)
+    fraud_risk_level = Column(String(20), default="none")   # none | low | medium | high
+    fraud_flags = Column(Text, default="")                  # pipe-separated list of flag messages
+
     user = relationship("User", back_populates="reports")
     biomarkers = relationship("Biomarker", back_populates="report", cascade="all, delete-orphan")
 

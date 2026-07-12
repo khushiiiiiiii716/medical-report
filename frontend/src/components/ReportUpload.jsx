@@ -1,108 +1,79 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Loader2, Sparkles, FileText, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, X, Loader2, Sparkles, FileText, AlertCircle, BrainCircuit, CheckCircle2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-function ReportUpload({ onUploadSuccess }) {
+function ReportUpload({ onUploadSuccess, t }) {
   const [isOpen, setIsOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle, uploading, scanning, success, error
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [progressMsg, setProgressMsg] = useState('');
-  
-  const fileInputRef = useRef(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const fileInputRef = React.useRef(null);
 
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      validateAndSetFile(droppedFile);
-    }
-  };
-
-  const handleChange = (e) => {
-    e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      validateAndSetFile(e.target.files[0]);
-    }
+    if (e.dataTransfer.files?.[0]) validateAndSetFile(e.dataTransfer.files[0]);
   };
 
   const validateAndSetFile = (selectedFile) => {
-    const fileType = selectedFile.type;
     const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-    
-    if (validTypes.includes(fileType) || selectedFile.name.endsWith('.pdf')) {
+    if (validTypes.includes(selectedFile.type) || selectedFile.name.endsWith('.pdf')) {
       setFile(selectedFile);
       setStatus('idle');
       setErrorMsg('');
     } else {
-      setErrorMsg('Unsupported format. Please upload PDF, PNG, JPG, or JPEG.');
+      setErrorMsg(t('upload_error_format') || 'Unsupported format. Please upload PDF, PNG, JPG, or JPEG.');
       setFile(null);
     }
   };
 
   const handleUploadSubmit = async () => {
     if (!file) return;
-
     setStatus('uploading');
-    setProgressMsg('Uploading document to secure server...');
+    setActiveStep(0);
 
     const formData = new FormData();
     formData.append('file', file);
 
-    // Simulate progressive scanner messages
-    const statusIntervals = [
-      { delay: 1500, msg: "Initializing Optical Character Recognition (OCR)..." },
-      { delay: 3500, msg: "Extracting biological health values from text blocks..." },
-      { delay: 5500, msg: "Parsing diagnostic reference metrics..." },
-      { delay: 7500, msg: "Executing AI models for disease risk probabilities..." }
-    ];
-
-    statusIntervals.forEach(item => {
+    [
+      { delay: 1500, step: 1 },
+      { delay: 3500, step: 2 },
+      { delay: 5500, step: 3 },
+    ].forEach((item) => {
       setTimeout(() => {
-        if (status !== 'success' && status !== 'error') {
-          setProgressMsg(item.msg);
-        }
+        setActiveStep((prev) => (status !== 'success' && status !== 'error' ? item.step : prev));
       }, item.delay);
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/upload`, {
-        method: 'POST',
-        body: formData
-      });
-
+      const response = await fetch(`${API_BASE_URL}/upload`, { method: 'POST', body: formData });
       if (response.ok) {
         const data = await response.json();
+        setActiveStep(4);
         setStatus('success');
         setTimeout(() => {
           onUploadSuccess(data);
           resetUploader();
           setIsOpen(false);
-        }, 1000);
+        }, 1200);
       } else {
         const errData = await response.json();
         setStatus('error');
-        setErrorMsg(errData.error || 'Server processing error.');
+        setErrorMsg(errData.error || 'Server error while parsing document.');
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
       setStatus('error');
-      setErrorMsg('Network error. Ensure the backend server is running on port 5000.');
+      setErrorMsg(t('upload_error_network') || 'Connection error. Ensure backend is running.');
     }
   };
 
@@ -110,169 +81,137 @@ function ReportUpload({ onUploadSuccess }) {
     setFile(null);
     setStatus('idle');
     setErrorMsg('');
-    setProgressMsg('');
     setDragActive(false);
+    setActiveStep(0);
   };
+
+  const steps = [
+    t('upload_scanning') || 'Secure file upload',
+    t('upload_ocr') || 'OCR diagnostic extraction',
+    t('upload_extract') || 'Isolating biological variables',
+    t('upload_parse') || 'AI risk assessment models',
+  ];
 
   return (
     <>
-      {/* Launch Upload Button */}
-      <button
-        onClick={() => {
-          resetUploader();
-          setIsOpen(true);
-        }}
-        className="flex items-center space-x-2 bg-gradient-to-r from-neonCyan to-neonTeal text-darkBg px-4 py-2.5 rounded-xl font-bold hover:opacity-90 hover:shadow-glow-cyan transition-all text-xs uppercase tracking-wider"
-      >
-        <Upload size={14} className="stroke-[2.5]" />
-        <span>Analyze Report</span>
+      <button onClick={() => { resetUploader(); setIsOpen(true); }} className="btn-primary px-4 py-2.5 text-xs uppercase tracking-wider">
+        <Upload size={14} />
+        <span className="hidden sm:inline">{t('btn_analyze') || 'Analyze Report'}</span>
+        <span className="sm:hidden">Upload</span>
       </button>
 
-      {/* Upload Modal Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-darkBg/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="relative w-full max-w-lg glass-panel rounded-2xl border border-darkCardBorder shadow-2xl p-6 overflow-hidden">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-darkCardBorder">
-              <div className="flex items-center space-x-2 text-neonCyan">
-                <Sparkles size={18} />
-                <h3 className="font-extrabold text-base uppercase tracking-wider text-white">
-                  Upload Lab Report
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Upload report">
+          <div className="relative w-full max-w-xl animate-scale-in overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white/95 p-6 shadow-soft-lg backdrop-blur-xl dark:border-white/10 dark:bg-[#0f1729]/95">
+            <div className="mb-5 flex items-center justify-between border-b border-slate-200/60 pb-4 dark:border-white/8">
+              <div>
+                <div className="mb-1 flex items-center gap-2 section-label text-blue-600">
+                  <BrainCircuit size={16} />
+                  {t('upload_title') || 'Upload Lab Report'}
+                </div>
+                <div className="font-display text-xl font-bold text-slate-900 dark:text-white">Secure report intake</div>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors"
-                disabled={status === 'uploading'}
-              >
+              <button onClick={() => setIsOpen(false)} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10" disabled={status === 'uploading'} aria-label="Close">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Drag & Drop Area */}
             {status === 'idle' && (
-              <div 
+              <div
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current.click()}
-                className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
-                  dragActive 
-                    ? 'border-neonCyan bg-neonCyan/5' 
-                    : 'border-darkCardBorder hover:border-slate-500 hover:bg-white/5'
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-3xl border-2 border-dashed p-10 text-center transition-all duration-300 ${
+                  dragActive
+                    ? 'border-blue-500 bg-blue-50/60 scale-[1.01] dark:bg-blue-950/20'
+                    : 'border-slate-200 bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/30 dark:border-white/10 dark:bg-white/3'
                 }`}
               >
-                <input 
-                  ref={fileInputRef}
-                  type="file" 
-                  className="hidden" 
-                  accept=".pdf,image/png,image/jpeg,image/jpg,image/webp" 
-                  onChange={handleChange}
-                />
-                
-                <div className="p-4 bg-white/5 rounded-full text-slate-400 mb-4 border border-white/5">
-                  <Upload size={32} />
+                <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,image/png,image/jpeg,image/jpg,image/webp" onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])} />
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-glow-cyan">
+                  <Upload size={28} />
                 </div>
-                
-                <p className="text-sm font-bold text-slate-200 mb-1">
-                  Drag and drop your report here
-                </p>
-                <p className="text-xs text-slate-400">
-                  Supports PDF, PNG, JPG, JPEG (Max 16MB)
-                </p>
+                <div className="font-display text-lg font-bold text-slate-900 dark:text-white">{t('upload_drag') || 'Drag and drop your report here'}</div>
+                <div className="mt-2 text-sm text-slate-500">{t('upload_sub') || 'Supports PDF, PNG, JPG, JPEG (Max 16MB)'}</div>
               </div>
             )}
 
-            {/* File Selected Preview */}
             {file && status === 'idle' && (
-              <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
-                <div className="flex items-center space-x-3 min-w-0">
-                  <FileText className="text-neonCyan shrink-0" size={24} />
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200/60 bg-slate-50/80 p-4 dark:border-white/8 dark:bg-white/5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileText className="shrink-0 text-blue-500" size={24} />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate max-w-[280px]">
-                      {file.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB
-                    </p>
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{file.name}</p>
+                    <p className="text-xs text-slate-400">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
                   </div>
                 </div>
-                <button 
-                  onClick={resetUploader}
-                  className="text-slate-400 hover:text-white p-1 hover:bg-white/5 rounded-full"
-                >
-                  <X size={16} />
+                <button onClick={(e) => { e.stopPropagation(); resetUploader(); }} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10" aria-label="Remove file">
+                  <X size={14} />
                 </button>
               </div>
             )}
 
-            {/* Error Message */}
             {errorMsg && (
-              <div className="mt-4 p-4 bg-neonCritical/10 border border-neonCritical/20 rounded-xl flex items-start space-x-3 text-neonCritical">
-                <AlertCircle className="shrink-0 mt-0.5" size={16} />
-                <p className="text-xs font-medium leading-relaxed">{errorMsg}</p>
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/20 dark:text-rose-400" role="alert">
+                <AlertCircle className="mt-0.5 shrink-0" size={16} />
+                <p>{errorMsg}</p>
               </div>
             )}
 
-            {/* Scan Progress Bar / Scanning State */}
             {status === 'uploading' && (
-              <div className="py-8 flex flex-col items-center justify-center text-center">
-                <div className="relative w-44 h-44 border border-white/5 bg-[#0B0F19] rounded-xl overflow-hidden mb-6 flex flex-col items-center justify-center">
-                  {/* Glowing Laser Scan Bar */}
-                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-neonCyan to-transparent scanner-line"></div>
-                  
-                  {/* File Mock Graphic */}
-                  <FileText size={48} className="text-neonCyan/30 animate-pulse" />
-                  <p className="text-[10px] font-bold text-neonCyan tracking-widest mt-2 uppercase">Scanning</p>
+              <div className="space-y-6 py-4">
+                <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/60 bg-slate-50/80 dark:border-white/8 dark:bg-white/3">
+                  <div className="scanner-line absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+                  <FileText size={44} className="text-blue-500/25 animate-pulse-soft" />
+                  <span className="absolute bottom-3 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">Scanning document</span>
                 </div>
-                
-                <div className="flex items-center justify-center space-x-2 text-sm text-slate-300">
-                  <Loader2 size={16} className="animate-spin text-neonCyan" />
-                  <span className="font-semibold">{progressMsg}</span>
+
+                <div className="mx-auto max-w-sm space-y-3">
+                  {steps.map((label, i) => {
+                    const isDone = activeStep > i;
+                    const isActive = activeStep === i;
+                    return (
+                      <div key={i} className="flex items-center gap-3 text-xs">
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold transition-all duration-300 ${
+                          isDone ? 'border-emerald-500 bg-emerald-500 text-white' :
+                          isActive ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-950/40' :
+                          'border-slate-200 text-slate-400 dark:border-white/10'
+                        }`}>
+                          {isDone ? '✓' : i + 1}
+                        </div>
+                        <span className={`font-medium transition-colors ${isDone ? 'text-slate-400 line-through' : isActive ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                          {label}
+                        </span>
+                        {isActive && <Loader2 size={12} className="ml-auto animate-spin text-blue-500" />}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Success Animation */}
             {status === 'success' && (
-              <div className="py-8 flex flex-col items-center justify-center text-center">
-                <div className="p-4 bg-neonTeal/15 text-neonTeal rounded-full mb-4 border border-neonTeal/20 shadow-glow-teal animate-bounce">
-                  <Sparkles size={36} />
+              <div className="flex flex-col items-center py-10 text-center animate-scale-in">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-500">
+                  <CheckCircle2 size={32} />
                 </div>
-                <p className="text-sm font-bold text-white mb-1">
-                  Report Processed Successfully!
-                </p>
-                <p className="text-xs text-slate-400">
-                  Synchronizing health markers...
-                </p>
+                <p className="font-display text-lg font-bold text-slate-900 dark:text-white">{t('upload_success') || 'Report analyzed successfully!'}</p>
+                <p className="mt-1 text-sm text-slate-500">{t('upload_syncing') || 'Rendering diagnostics dashboard…'}</p>
               </div>
             )}
 
-            {/* Action Buttons */}
             {status === 'idle' && (
-              <div className="mt-6 flex justify-end space-x-3 border-t border-darkCardBorder pt-4">
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white uppercase tracking-wider"
-                >
-                  Cancel
+              <div className="mt-6 flex justify-end gap-3 border-t border-slate-200/60 pt-4 dark:border-white/8">
+                <button onClick={() => setIsOpen(false)} className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-800">
+                  {t('upload_cancel') || 'Cancel'}
                 </button>
-                <button
-                  onClick={handleUploadSubmit}
-                  disabled={!file}
-                  className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                    file 
-                      ? 'bg-gradient-to-r from-neonCyan to-neonTeal text-darkBg' 
-                      : 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/5'
-                  }`}
-                >
-                  Start Analysis
+                <button onClick={handleUploadSubmit} disabled={!file} className="btn-primary px-5 py-2.5 text-xs uppercase tracking-wider disabled:opacity-50">
+                  {t('upload_start') || 'Start Analysis'}
                 </button>
               </div>
             )}
-
           </div>
         </div>
       )}

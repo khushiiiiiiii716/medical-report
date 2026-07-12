@@ -1,182 +1,114 @@
 import React, { useState } from 'react';
-import { Apple, Dumbbell, Sun, Sparkles, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Apple, Dumbbell, Sun, Sparkles, CheckCircle2 } from 'lucide-react';
 
-function Recommendations({ report }) {
+function Recommendations({ report, t }) {
   const [activeSubTab, setActiveSubTab] = useState('diet');
   const [checkedItems, setCheckedItems] = useState({});
 
-  if (!report) return null;
+  if (!report) {
+    return (
+      <div className="mx-auto max-w-lg soft-card py-16 text-center">
+        <Sparkles size={40} className="mx-auto mb-4 text-blue-400" />
+        <p className="text-sm text-slate-500">Upload a report to receive personalized health recommendations.</p>
+      </div>
+    );
+  }
 
   const recs = report.recommendations;
-
   const toggleCheck = (category, index) => {
     const key = `${category}-${index}`;
-    setCheckedItems(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const tabs = [
+    { key: 'diet', icon: Apple, label: t('tab_diet') || 'Dietary Roadmap', heading: t('diet_heading') || 'Nutritional Action Plan', color: 'from-green-500 to-emerald-500' },
+    { key: 'exercise', icon: Dumbbell, label: t('tab_exercise') || 'Exercise Program', heading: t('exercise_heading') || 'Physiology & Exercise', color: 'from-blue-500 to-cyan-500' },
+    { key: 'lifestyle', icon: Sun, label: t('tab_lifestyle') || 'Sleep & Habits', heading: t('lifestyle_heading') || 'Daily Habits Guidelines', color: 'from-amber-500 to-orange-500' },
+  ];
+
+  const activeTab = tabs.find((tab) => tab.key === activeSubTab);
+  const completedCount = Object.values(checkedItems).filter(Boolean).length;
+  const totalItems = (recs.diet?.length || 0) + (recs.exercise?.length || 0) + (recs.lifestyle?.length || 0);
+  const progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+
   return (
-    <div className="space-y-6">
-      
-      {/* Overview Block */}
-      <div className="glass-panel p-6 rounded-2xl border border-darkCardBorder">
-        <div className="flex items-center space-x-2 text-neonCyan mb-3">
-          <Sparkles size={16} />
-          <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-            Tailored Interventions Summary
-          </h3>
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="soft-card overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600/10 via-cyan-500/10 to-emerald-500/10 p-6 dark:from-blue-950/30 dark:via-cyan-950/20 dark:to-emerald-950/20">
+          <div className="flex items-center gap-2 section-label text-blue-600">
+            <Sparkles size={14} />
+            {t('rec_title') || 'Personalized Health Interventions'}
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            Based on <strong className="text-slate-900 dark:text-white">{report.filename}</strong> (Score: {report.health_score}/100), AI built this customized plan to optimize your health metrics.
+          </p>
+
+          <div className="mt-5">
+            <div className="mb-2 flex justify-between text-xs font-semibold">
+              <span className="text-slate-500">Completion progress</span>
+              <span className="text-blue-600">{completedCount}/{totalItems} ({progress}%)</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed max-w-3xl">
-          Based on the diagnostic abnormalities identified in **{report.filename}** (Health Score: {report.health_score}/100), our clinical rules engine has constructed a personalized dietary and physical activity roadmap to help stabilize your biomarkers.
-        </p>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex space-x-2 bg-white/5 p-1 rounded-xl w-fit border border-white/5">
-        <button
-          onClick={() => setActiveSubTab('diet')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-            activeSubTab === 'diet'
-              ? 'bg-gradient-to-r from-neonCyan/20 to-neonIndigo/10 text-neonCyan border border-neonCyan/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Apple size={14} />
-          <span>Dietary Modifications</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('exercise')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-            activeSubTab === 'exercise'
-              ? 'bg-gradient-to-r from-neonCyan/20 to-neonIndigo/10 text-neonCyan border border-neonCyan/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Dumbbell size={14} />
-          <span>Physical Activity Plan</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('lifestyle')}
-          className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-            activeSubTab === 'lifestyle'
-              ? 'bg-gradient-to-r from-neonCyan/20 to-neonIndigo/10 text-neonCyan border border-neonCyan/20'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Sun size={14} />
-          <span>Lifestyle & Sleep Habits</span>
-        </button>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/60 bg-slate-50/60 p-1.5 dark:border-white/8 dark:bg-white/3" role="tablist">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={activeSubTab === tab.key}
+              onClick={() => setActiveSubTab(tab.key)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
+                activeSubTab === tab.key
+                  ? 'bg-white text-blue-600 shadow-sm dark:bg-[#141f33] dark:text-blue-400'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+            >
+              <Icon size={14} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Recommendations Cards List */}
-      <div className="glass-panel p-6 rounded-2xl border border-darkCardBorder min-h-[300px]">
-        {activeSubTab === 'diet' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 mb-2 text-white">
-              <Apple className="text-neonCyan" size={18} />
-              <h4 className="font-bold text-sm">Nutritional Roadmap</h4>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {recs.diet.map((item, idx) => {
-                const isChecked = checkedItems[`diet-${idx}`];
-                return (
-                  <div 
-                    key={idx}
-                    onClick={() => toggleCheck('diet', idx)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start space-x-3 ${
-                      isChecked 
-                        ? 'bg-neonTeal/5 border-neonTeal/20 opacity-60' 
-                        : 'bg-white/5 border-white/5 hover:border-slate-600'
-                    }`}
-                  >
-                    <CheckCircle2 
-                      size={18} 
-                      className={`shrink-0 mt-0.5 transition-colors ${isChecked ? 'text-neonTeal' : 'text-slate-600'}`} 
-                    />
-                    <p className={`text-xs leading-relaxed ${isChecked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
-                      {item}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+      <div className="soft-card min-h-[280px] p-6">
+        <div className="mb-5 flex items-center gap-2">
+          <div className={`rounded-xl bg-gradient-to-br ${activeTab.color} p-2 text-white`}>
+            <activeTab.icon size={18} />
           </div>
-        )}
+          <h4 className="font-display text-base font-bold text-slate-900 dark:text-white">{activeTab.heading}</h4>
+        </div>
 
-        {activeSubTab === 'exercise' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 mb-2 text-white">
-              <Dumbbell className="text-neonCyan" size={18} />
-              <h4 className="font-bold text-sm">Cardio & Strength Training Guidelines</h4>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {recs.exercise.map((item, idx) => {
-                const isChecked = checkedItems[`exercise-${idx}`];
-                return (
-                  <div 
-                    key={idx}
-                    onClick={() => toggleCheck('exercise', idx)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start space-x-3 ${
-                      isChecked 
-                        ? 'bg-neonTeal/5 border-neonTeal/20 opacity-60' 
-                        : 'bg-white/5 border-white/5 hover:border-slate-600'
-                    }`}
-                  >
-                    <CheckCircle2 
-                      size={18} 
-                      className={`shrink-0 mt-0.5 transition-colors ${isChecked ? 'text-neonTeal' : 'text-slate-600'}`} 
-                    />
-                    <p className={`text-xs leading-relaxed ${isChecked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
-                      {item}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {activeSubTab === 'lifestyle' && (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2 mb-2 text-white">
-              <Sun className="text-neonCyan" size={18} />
-              <h4 className="font-bold text-sm">Daily Habits & Stress Management</h4>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {recs.lifestyle.map((item, idx) => {
-                const isChecked = checkedItems[`lifestyle-${idx}`];
-                return (
-                  <div 
-                    key={idx}
-                    onClick={() => toggleCheck('lifestyle', idx)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex items-start space-x-3 ${
-                      isChecked 
-                        ? 'bg-neonTeal/5 border-neonTeal/20 opacity-60' 
-                        : 'bg-white/5 border-white/5 hover:border-slate-600'
-                    }`}
-                  >
-                    <CheckCircle2 
-                      size={18} 
-                      className={`shrink-0 mt-0.5 transition-colors ${isChecked ? 'text-neonTeal' : 'text-slate-600'}`} 
-                    />
-                    <p className={`text-xs leading-relaxed ${isChecked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
-                      {item}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {(recs[activeSubTab] || []).map((item, idx) => {
+            const isChecked = checkedItems[`${activeSubTab}-${idx}`];
+            return (
+              <div
+                key={idx}
+                onClick={() => toggleCheck(activeSubTab, idx)}
+                role="checkbox"
+                aria-checked={isChecked}
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && toggleCheck(activeSubTab, idx)}
+                className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 ${
+                  isChecked
+                    ? 'border-emerald-500/30 bg-emerald-50/50 opacity-70 dark:bg-emerald-950/15'
+                    : 'border-slate-200/60 bg-slate-50/40 hover:border-blue-300/60 hover:shadow-sm dark:border-white/8 dark:bg-white/3'
+                }`}
+              >
+                <CheckCircle2 size={18} className={`mt-0.5 shrink-0 transition-colors ${isChecked ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'}`} />
+                <p className={`text-sm leading-relaxed ${isChecked ? 'text-slate-400 line-through' : 'font-medium text-slate-700 dark:text-slate-300'}`}>{item}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
-
     </div>
   );
 }
