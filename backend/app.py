@@ -339,8 +339,10 @@ def chat():
             "family_history_heart": user.family_history_heart
         } if user else {}
         
-        # Generate Response using local NLP chatbot logic
-        bot_response = process_chat_query(query, biomarkers=biomarkers, user_profile=user_profile)
+        # Generate Response via Ollama (llama3) with fallback to local rules
+        lang = data.get("lang", "en")
+        lang = lang if lang in SUPPORTED_LANGS else "en"
+        bot_response = process_chat_query(query, biomarkers=biomarkers, user_profile=user_profile, lang=lang)
         
         # Save messages to database
         user_msg = ChatMessage(user_id=1, role="user", content=query)

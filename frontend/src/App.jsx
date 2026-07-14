@@ -133,7 +133,7 @@ function App() {
     { key: 'recommendations', icon: <Sparkles size={18} />, label: t('nav_recommendations') },
     { key: 'chatbot', icon: <MessageSquare size={18} />, label: t('nav_chatbot') },
     { key: 'profile', icon: <User size={18} />, label: t('nav_profile') },
-    { key: 'settings', icon: <Settings size={18} />, label: 'Settings' },
+    { key: 'settings', icon: <Settings size={18} />, label: t('nav_settings') },
   ];
 
   const tabTitles = {
@@ -142,7 +142,7 @@ function App() {
     recommendations: t('nav_recommendations'),
     chatbot: t('nav_chatbot'),
     profile: t('nav_profile'),
-    settings: 'Settings & Security',
+    settings: t('nav_settings_title'),
   };
 
   if (!isLoggedIn) {
@@ -315,7 +315,7 @@ function App() {
           {activeTab === 'recommendations' && <Recommendations report={currentReport} lang={lang} t={t} />}
           {activeTab === 'chatbot' && <ChatBot report={currentReport} lang={lang} t={t} />}
           {activeTab === 'profile' && <ProfilePage userProfile={userProfile} onUpdate={handleUpdateProfile} t={t} />}
-          {activeTab === 'settings' && <SettingsPage settingsForm={settingsForm} setSettingsForm={setSettingsForm} theme={theme} setTheme={setTheme} t={t} />}
+          {activeTab === 'settings' && <SettingsPage settingsForm={settingsForm} setSettingsForm={setSettingsForm} theme={theme} setTheme={setTheme} lang={lang} setLang={setLang} t={t} />}
         </div>
       </main>
     </div>

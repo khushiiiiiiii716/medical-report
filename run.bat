@@ -4,14 +4,22 @@ echo ==============================================================
 echo             AURA MED - AI MEDICAL REPORT ANALYZER              
 echo ==============================================================
 echo.
+
+:: Capture root dir without trailing backslash
+set "ROOT=%~dp0"
+if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
+
 echo [1/4] Verifying environment configurations...
-if not exist "%~dp0venv\Scripts\python.exe" (
-    echo Error: Python virtual environment not found. Please ensure venv is created.
+if not exist "%ROOT%\venv\Scripts\python.exe" (
+    echo Error: Python virtual environment not found.
+    echo Please run: python -m venv venv
+    echo Then run:   venv\Scripts\pip install -r backend\requirements.txt
     pause
     exit /b 1
 )
-if not exist "%~dp0frontend\node_modules" (
-    echo Error: Frontend node_modules not found. Please run 'npm install' in frontend folder.
+if not exist "%ROOT%\frontend\node_modules" (
+    echo Error: Frontend node_modules not found.
+    echo Please run: cd frontend ^&^& npm install
     pause
     exit /b 1
 )
@@ -24,19 +32,19 @@ echo Detected IP: %HOST_IP%
 
 echo.
 echo [2b/4] Writing frontend\.env for Vite...
-echo VITE_API_BASE_URL=http://%HOST_IP%:5000/api> "%~dp0frontend\.env"
-echo Created frontend\.env ^(VITE_API_BASE_URL=http://%HOST_IP%:5000/api^)
+echo VITE_API_BASE_URL=http://%HOST_IP%:5000/api> "%ROOT%\frontend\.env"
+echo Created frontend\.env with VITE_API_BASE_URL=http://%HOST_IP%:5000/api
 
 echo.
 echo [3/4] Launching Flask AI Backend Server (Port 5000)...
-start "Aura Med Backend" cmd /k "cd /d "%~dp0" && venv\Scripts\python.exe backend\app.py"
+start "Aura Med Backend" cmd /k "pushd "%ROOT%" && venv\Scripts\python.exe backend\app.py"
 
 echo Waiting 3 seconds for backend to initialize...
 timeout /t 3 /nobreak >nul
 
 echo.
 echo [4/4] Launching React Vite Development Server (Port 5173)...
-start "Aura Med Frontend" cmd /k "cd /d "%~dp0frontend" && npm.cmd run dev -- --host 0.0.0.0"
+start "Aura Med Frontend" cmd /k "pushd "%ROOT%\frontend" && npm.cmd run dev -- --host 0.0.0.0"
 
 echo.
 echo ==============================================================
@@ -47,7 +55,7 @@ echo - Backend API:    http://localhost:5000/api
 if not "%HOST_IP%"=="localhost" echo - Backend  (LAN): http://%HOST_IP%:5000/api
 echo.
 echo To test, upload sample files from the 'samples' folder:
-echo - samples\digital_blood_report.pdf
-echo - samples\scanned_blood_report.png
+echo   samples\digital_blood_report.pdf
+echo   samples\scanned_blood_report.png
 echo ==============================================================
 pause

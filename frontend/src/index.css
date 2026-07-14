@@ -124,7 +124,7 @@
   }
 
   .dark .soft-card {
-    @apply border-white/8 bg-[#0f1729]/90;
+    @apply border border-white/10 bg-[#0f1729]/90;
   }
 
   .btn-primary {
