@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import FraudAlert from './FraudAlert';
 import RiskPredictor from './RiskPredictor';
+import BodyMap from './BodyMap';
 import ProgressRing from './ui/ProgressRing';
 import { SkeletonChart } from './ui/Skeleton';
 
@@ -320,6 +321,9 @@ function Dashboard({ report, reportsList, setActiveTab, setActiveReportIndex, t 
 
       {report.fraud_detection && <FraudAlert fraudDetection={report.fraud_detection} t={t} />}
       {report.risks && <RiskPredictor risks={report.risks} />}
+
+      {/* Interactive Body Map */}
+      <BodyMap biomarkers={report.biomarkers} risks={report.risks} />
 
       {/* Biomarker grid */}
       <div className="soft-card p-6">

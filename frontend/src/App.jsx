@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Activity, FileText, MessageSquare, User, Sparkles, Globe, Sun, Moon,
-  Mic, GitCompare, LogOut, Settings, Menu, X
+  Mic, GitCompare, LogOut, Settings, Menu, X, Pill
 } from 'lucide-react';
 
 import Dashboard from './components/Dashboard';
@@ -16,6 +16,7 @@ import VoiceAssistant from './components/VoiceAssistant';
 import ReportComparison from './components/ReportComparison';
 import ProfilePage from './components/ProfilePage';
 import SettingsPage from './components/SettingsPage';
+import MedicationReminder from './components/MedicationReminder';
 
 import { DEFAULT_PROFILE, MOCK_REPORTS } from './utils/mockData';
 import { LANGUAGES, useTranslation } from './utils/translations';
@@ -131,18 +132,20 @@ function App() {
     { key: 'dashboard', icon: <Activity size={18} />, label: t('nav_dashboard') },
     { key: 'history', icon: <FileText size={18} />, label: `${t('nav_history')} (${reports.length})` },
     { key: 'recommendations', icon: <Sparkles size={18} />, label: t('nav_recommendations') },
-    { key: 'chatbot', icon: <MessageSquare size={18} />, label: t('nav_chatbot') },
-    { key: 'profile', icon: <User size={18} />, label: t('nav_profile') },
-    { key: 'settings', icon: <Settings size={18} />, label: t('nav_settings') },
+    { key: 'chatbot',    icon: <MessageSquare size={18} />, label: t('nav_chatbot') },
+    { key: 'medication', icon: <Pill size={18} />,          label: t('nav_medication') },
+    { key: 'profile',    icon: <User size={18} />,          label: t('nav_profile') },
+    { key: 'settings',   icon: <Settings size={18} />,      label: t('nav_settings') },
   ];
 
   const tabTitles = {
     dashboard: 'Clinical Diagnostics Dashboard',
     history: t('nav_history'),
     recommendations: t('nav_recommendations'),
-    chatbot: t('nav_chatbot'),
-    profile: t('nav_profile'),
-    settings: t('nav_settings_title'),
+    chatbot:    t('nav_chatbot'),
+    medication: t('nav_medication'),
+    profile:    t('nav_profile'),
+    settings:   t('nav_settings_title'),
   };
 
   if (!isLoggedIn) {
@@ -313,8 +316,9 @@ function App() {
             />
           )}
           {activeTab === 'recommendations' && <Recommendations report={currentReport} lang={lang} t={t} />}
-          {activeTab === 'chatbot' && <ChatBot report={currentReport} lang={lang} t={t} />}
-          {activeTab === 'profile' && <ProfilePage userProfile={userProfile} onUpdate={handleUpdateProfile} t={t} />}
+          {activeTab === 'chatbot'    && <ChatBot report={currentReport} lang={lang} t={t} />}
+          {activeTab === 'medication' && <MedicationReminder t={t} />}
+          {activeTab === 'profile'    && <ProfilePage userProfile={userProfile} onUpdate={handleUpdateProfile} t={t} />}
           {activeTab === 'settings' && <SettingsPage settingsForm={settingsForm} setSettingsForm={setSettingsForm} theme={theme} setTheme={setTheme} lang={lang} setLang={setLang} t={t} />}
         </div>
       </main>
