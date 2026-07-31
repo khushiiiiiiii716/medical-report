@@ -167,6 +167,26 @@
     @apply text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500;
   }
 
+  .upload-modal-panel {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow:
+      0 0 0 1px rgba(37, 99, 235, 0.06),
+      0 24px 64px -16px rgba(15, 23, 42, 0.28),
+      0 8px 24px -8px rgba(37, 99, 235, 0.12);
+  }
+
+  .dark .upload-modal-panel {
+    background: rgba(12, 22, 40, 0.94);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 0 0 1px rgba(56, 189, 248, 0.08),
+      0 24px 64px -16px rgba(0, 0, 0, 0.55),
+      0 8px 24px -8px rgba(37, 99, 235, 0.15);
+  }
+
   .gradient-text {
     @apply bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500 bg-clip-text text-transparent;
   }
@@ -196,6 +216,46 @@
 
 .scanner-line {
   animation: scan-line 2s linear infinite;
+}
+
+@keyframes scan-line {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes upload-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.upload-modal-backdrop {
+  animation: modal-backdrop-in 0.3s ease-out forwards;
+}
+
+.upload-modal-panel {
+  animation: modal-panel-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.upload-icon-float {
+  animation: upload-float 3s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar {

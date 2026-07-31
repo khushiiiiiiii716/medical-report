@@ -4,7 +4,7 @@ from utils.parser import calculate_health_score
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3:latest"
-OLLAMA_TIMEOUT = 180  # seconds — llama3 can be slow on first token
+OLLAMA_TIMEOUT = 560  # seconds — llama3 can be slow on first token
 
 DISCLAIMER = (
     "\n\n---\n*Disclaimer: I am an AI Health Assistant, not a medical professional. "
